@@ -2,32 +2,32 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import e from 'express';
-import { error } from 'console';
 
 @Injectable()
 export class TasksService {
   constructor(private readonly prisma: PrismaService) {}
-  async create(createTaskDto: CreateTaskDto) {
+  async create(createTaskDto: CreateTaskDto, userId: number) {
     const taskbyname = await this.prisma.task.findFirst({
-      where: { text: createTaskDto.text },
+      where: { text: createTaskDto.text, userId: userId },
     });
-
     if (taskbyname) {
       throw new BadRequestException('Task already exists');
     }
-
     try {
-      const task = await this.prisma.task.create({ data: createTaskDto });
+      const task = await this.prisma.task.create({
+        data: { ...createTaskDto, userId },
+      });
       return task;
     } catch (error) {
       throw new BadRequestException('Error creating task' + error.message);
     }
   }
 
-  async findAll() {
+  async findAll(userId: number) {
     try {
-      const tasks = await this.prisma.task.findMany();
+      const tasks = await this.prisma.task.findMany({
+        where: { userId: userId },
+      });
       if (tasks.length > 0) {
         return tasks;
       } else {
@@ -38,9 +38,9 @@ export class TasksService {
     }
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, userId: number) {
     try {
-      const task = await this.prisma.task.findFirst({ where: { id } });
+      const task = await this.prisma.task.findFirst({ where: { id, userId } });
       if (task) {
         return task;
       } else {
@@ -51,11 +51,11 @@ export class TasksService {
     }
   }
 
-  async update(id: number, updateTaskDto: UpdateTaskDto) {
-    const task = await this.prisma.task.findFirst({ where: { id } });
+  async update(id: number, updateTaskDto: UpdateTaskDto, userId: number) {
+    const task = await this.prisma.task.findFirst({ where: { id, userId } });
     if (task) {
       const taskbyname = await this.prisma.task.findFirst({
-        where: { text: updateTaskDto.text },
+        where: { text: updateTaskDto.text, userId },
       });
 
       if (taskbyname && taskbyname.id !== id) {
@@ -67,7 +67,7 @@ export class TasksService {
     try {
       const updatedTask = await this.prisma.task.update({
         where: { id },
-        data: updateTaskDto,
+        data: { ...updateTaskDto, userId },
       });
       return updatedTask;
     } catch (error) {
@@ -75,11 +75,13 @@ export class TasksService {
     }
   }
 
-  async remove(id: number) {
+  async remove(id: number, userId: number) {
     try {
-      const task = await this.prisma.task.findFirst({ where: { id } });
+      const task = await this.prisma.task.findFirst({ where: { id, userId } });
       if (task) {
-        const deletedtask = await this.prisma.task.delete({ where: { id } });
+        const deletedtask = await this.prisma.task.delete({
+          where: { id, userId },
+        });
         return deletedtask;
       } else {
         throw new BadRequestException('Task not found');
